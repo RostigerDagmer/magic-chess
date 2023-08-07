@@ -1,10 +1,13 @@
 pub mod render;
+use std::sync::Arc;
+use std::fmt::Debug;
+
 pub use render::*;
 mod warrior;
 pub use warrior::*;
 use super::Game;
 
-pub trait Spell {
+pub trait Spell: Debug {
     fn class_list(&self) -> String;
     fn execute(&self, game: Game, square: Option<chess::Square>) -> Game;
     fn update(&mut self, m: &chess::ChessMove);
@@ -13,10 +16,10 @@ pub trait Spell {
     fn identifier(&self) -> u32;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Kind<T: Spell + ?Sized> {
-    Transparent(Box<T>),
-    Opaque(Box<T>),
+    Transparent(Arc<T>),
+    Opaque(Arc<T>),
     None,
 }
 

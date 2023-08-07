@@ -11,7 +11,7 @@ use super::board::render::UIBoard;
 use super::{Game, Spell, spell};
 
 /// Error Type for Illagl Move
-struct IllegalMoveError;
+pub struct IllegalMoveError;
 
 impl std::fmt::Display for IllegalMoveError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -38,8 +38,10 @@ pub fn collect_spell(game: &Game, target_square: Square) -> Game {
     let piece = game.board().piece_on(target_square);
     let color = game.board().color_on(target_square);
     let spell = game.board().spell_on(target_square);
-    game.collect_spell(target_square, spell);
-    game.clone()
+    match spell {
+        Some(s) => game.collect_spell(target_square, s),
+        None => game.clone()
+    }
 }
 
 pub fn make_move(game: &Game, event: DragEvent) -> Game {
@@ -82,7 +84,7 @@ pub fn cast_spell(game: &Game, spell: Arc<dyn Spell>, event: DragEvent) -> Game 
     let board_el = document().get_element_by_id(&"board").unwrap();
 
     let square = map_to_square(point, &board_el, game.board().dims());
-    let valid = game.board().piece_on(square).unwrap_or(false).is_mine();
+    //let valid = game.board().piece_on(square).unwrap_or(false).is_mine();
     info!("casted {:?} to square: {:?}", spell.name(), square);
 
     let game = spell.execute(game.clone(), Some(square));

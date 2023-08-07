@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use spell::Kind;
 use spell::{JihadiWarrior, Spell};
 use yew::prelude::*;
 use chess::{Board, Color, Piece, Square};
@@ -91,9 +92,19 @@ impl UISquare {
 
 impl Default for UIBoard {
     fn default() -> Self {
+        let mut spells: Vec<Kind<dyn Spell>> = Vec::with_capacity(64);
+        (0..64).into_iter().for_each(|i| {
+            if i == 4 {
+                spells.push(Kind::Opaque(Arc::new(JihadiWarrior::default())))
+            } else if i == 20 {
+                spells.push(Kind::Transparent(Arc::new(JihadiWarrior::default())));
+            } else {
+                spells.push(Kind::None);
+            }
+        });
         Self {
             dims: (8, 8),
-            spells: Arc::new(Vec::with_capacity(8 * 8)),
+            spells: Arc::new(spells),
             board: Board::default(),
         }
     }
@@ -101,7 +112,13 @@ impl Default for UIBoard {
 
 impl UIBoard {
     pub fn new(board: Board, dims: (usize, usize), spells: Option<Arc<Vec<spell::Kind<dyn Spell>>>>) -> Self {
-        let spells = spells.unwrap_or(Arc::new(Vec::with_capacity(dims.0 * dims.1)));
+        let spells = spells.unwrap_or({
+            let mut default = Vec::with_capacity(dims.0 * dims.1);
+            (0..dims.0 * dims.1).into_iter().for_each(|i| {
+                default.push(Kind::None);
+            });
+            Arc::new(default)
+        });
         Self {
             dims,
             spells,
@@ -114,23 +131,34 @@ impl UIBoard {
         (0..self.dims.1).into_iter().map(|rank| {
             (0..self.dims.0).into_iter().map(move |file| {
                 let square = Square::make_square(chess::Rank::from_index(rank), chess::File::from_index(file));
+                let mut spell = Kind::None;
+                match &self.spells.clone()[square.get_file().to_index() * self.dims().0 + square.get_rank().to_index()] {
+                    Kind::Transparent(s) => spell = Kind::Transparent(s.clone()),
+                    Kind::Opaque(s) => spell = Kind::Opaque(s.clone()),
+                    Kind::None => ()
+                }
+
                 let piece = self.board.piece_on(square);
                 let color = self.board.color_on(square);
-                if rank == 4 && file == 4 {
-                    UISquare::gen_square(file, rank, piece, color, spell::Kind::Opaque(Box::new(JihadiWarrior::default())), (width, height))
-                } else {
-                    UISquare::gen_square(file, rank, piece, color, spell::Kind::None, (width, height))
-                }
+                UISquare::gen_square(file, rank, piece, color, spell, (width, height))
             })
         }).flat_map(|x| x).collect()
     }
 
-    pub fn game_state(&self) -> &Board {
+    pub fn board(&self) -> &Board {
         &self.board
     }
 
+    pub fn piece_on(&self, square: chess::Square) -> Option<chess::Piece> {
+        self.board().piece_on(square)
+    }
+
+    pub fn color_on(&self, square: chess::Square) -> Option<chess::Color> {
+        self.board().color_on(square)
+    }
+
     pub fn make_move_new(&self, m: chess::ChessMove) -> UIBoard {
-        let b_ = self.game_state().make_move_new(m);
+        let b_ = self.board().make_move_new(m);
         Self::new(b_, self.dims, Some(self.spells.clone()))
     }
 
@@ -138,8 +166,18 @@ impl UIBoard {
         self.dims
     }
 
+    pub fn spell_on(&self, square: chess::Square) -> Option<Arc<dyn Spell>> {
+        let s = &self.spells[square.get_file().to_index() * self.dims().0 + square.get_rank().to_index()];
+        info!("spell on {:?}:{:?}", square, s);
+        match s {
+            Kind::None => None,
+            Kind::Opaque(s) => Some(s.clone()),
+            Kind::Transparent(s) => Some(s.clone())
+        }
+    }
+
     pub fn remove_piece(&self, square: Square) -> UIBoard {
-        let board = self.game_state().clone();
+        let board = self.board().clone();
         let cleared = board.clear_square(square);
         match cleared {
             Some(board) => Self::new(board, self.dims, Some(self.spells.clone())),

@@ -6,7 +6,7 @@ use log::info;
 use super::Spell;
 use crate::game::{board::UIBoard, Game};
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct JihadiWarrior {
     id: u32,
     name: &'static str,
